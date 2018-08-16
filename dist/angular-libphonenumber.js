@@ -1,7 +1,7 @@
 /**
  * angular-libphonenumber
  * Nathan Hammond's libphonenumber ported to an angular filter
- * @version v1.1.0
+ * @version v1.0.0
  * @link https://github.com/cwill747/angular-libphonenumber
  * @license Apache-2.0
  */
@@ -16,20 +16,14 @@
  * filters a user typed phone number into a formatted number
  *
  */
-/* global angular */
+/* global phoneUtils, angular */
 angular.module('cwill747.phonenumber', [])
-  .directive('phoneNumber', ['$log', '$window', function($log, $window) {
-    function clearValue(value) {
-      if (!value) {
-        return value;
-      }
-      return value.replace(/([^0-9|+])/g, '');
-    }
+  .directive('phoneNumber', ['$log', function($log) {
 
     function applyPhoneMask(value, region) {
       var phoneMask = value;
       try {
-        phoneMask = $window.phoneUtils.formatAsTyped(value, region);
+        phoneMask = phoneUtils.formatAsTyped(value, region);
       }
       catch (err) {
         $log.debug(err);
@@ -42,11 +36,13 @@ angular.module('cwill747.phonenumber', [])
       require: '?ngModel',
       scope: {
         countryCode: '=',
-        nonFormatted: '=?'
+        nonFormatted: '=?',
+        phoneMaxLength: '=?'
       },
       controllerAs: '',
-      controller: function() {
+      controller: function( $scope ) {
         this.countryCode = this.countryCode || 'us';
+        $scope.phoneMaxLength = $scope.phoneMaxLength || Number.MAX_VALUE;
       },
       link: function(scope, element, attrs, ctrl) {
         var el = element[0];
@@ -54,20 +50,16 @@ angular.module('cwill747.phonenumber', [])
           ctrl.$modelValue = ctrl.$viewValue + ' ';
         });
 
-        function clean(value) {
-          var cleanValue = clearValue(value);
-          scope.nonFormatted = cleanValue;
-          var formattedValue = '';
-          if (cleanValue && cleanValue.length > 1) {
-            formattedValue = applyPhoneMask(cleanValue, scope.countryCode);
-          }
-          else {
-            formattedValue = cleanValue;
-          }
-          return formattedValue.trim();
-        }
 
-        function formatter(value) {
+		  function clearValue( value ) {
+			  if ( value ) {
+				  value = value.replace(/([^0-9|+])/g, '');
+				  if ( value.length > scope.phoneMaxLength ) { value = value.substring( 0, scope.phoneMaxLength ); }
+			  }
+			  return value;
+		  }
+
+		  function formatter(value) {
           if (ctrl.$isEmpty(value)) {
             return value;
           }
@@ -104,10 +96,23 @@ angular.module('cwill747.phonenumber', [])
           return clearValue(formattedValue);
         }
 
+        function clean(value) {
+          var cleanValue = clearValue(value);
+          scope.nonFormatted = cleanValue;
+          var formattedValue = '';
+          if (cleanValue && cleanValue.length > 1) {
+            formattedValue = applyPhoneMask(cleanValue, scope.countryCode);
+          }
+          else {
+            formattedValue = cleanValue;
+          }
+          return formattedValue.trim();
+        }
+
         function validator(value) {
           var isValidForRegion = false;
           try {
-            isValidForRegion = $window.phoneUtils.isValidNumberForRegion(value, scope.countryCode);
+            isValidForRegion = phoneUtils.isValidNumberForRegion(value, scope.countryCode);
           }
           catch (err) {
             $log.debug(err);
